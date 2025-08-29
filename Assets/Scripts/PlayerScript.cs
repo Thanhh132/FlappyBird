@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class PlayerScript : MonoBehaviour
 {
+    private GameManager gameManager;
     [SerializeField] private float gravity = -9.81f;
     [SerializeField] private float tilt = 5f;
     [SerializeField] private float jumpStrength = 5f;
@@ -11,6 +12,11 @@ public class PlayerScript : MonoBehaviour
     private Vector3 playerDirection;
     private Vector3 playerRotation;
     // Start is called before the first frame update
+    void Awake()
+    {
+        gameManager = FindObjectOfType<GameManager>();
+    }
+
     void Start()
     {
 
@@ -34,6 +40,15 @@ public class PlayerScript : MonoBehaviour
         ApplyGravity();
     }
 
+    private void OnEnable()
+    {
+        Vector3 position = transform.position;
+        position.y = 0;
+        transform.position = position;
+        playerDirection = Vector3.zero;
+        
+    }
+
     private void ApplyGravity()
     {
         playerDirection.y += gravity * Time.deltaTime;
@@ -43,5 +58,18 @@ public class PlayerScript : MonoBehaviour
         playerRotation.z = playerDirection.y * tilt;
         transform.eulerAngles = playerRotation;
     }
+
+    private void OnTriggerEnter2D(Collider2D other)
+    {
+        if (other.CompareTag("Scoring"))
+        {
+            gameManager.Scoring();
+        }
+        else if (other.CompareTag("Obstacles"))
+        {
+            gameManager.GameOver();
+        }
+    }
+
 
 }
