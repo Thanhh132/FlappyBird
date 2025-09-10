@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -7,60 +6,96 @@ using UnityEngine.UI;
 public class GameManager : MonoBehaviour
 {
     public PlayerScript player;
+    public GameObject playerObject;
     public Text scoreText;
-    [SerializeField]private int score;
+    public Text countdownText;
+
+    [Header("UI Panels")]
+    [SerializeField] private GameObject mainMenuPanel;
     [SerializeField] private GameObject gameOverPanel;
     [SerializeField] private GameObject playButton;
-    // Start is called before the first frame update
-    void Start()
+
+    private int score;
+
+    private void Start()
     {
-        PauseGame();
+        ShowMainMenu();
     }
 
-    // Update is called once per frame
-    void Update()
+    // Waiting screen
+    public void ShowMainMenu()
     {
+        Time.timeScale = 1;
+        score = 0;
+        scoreText.text = "0";
 
+        playerObject.SetActive(false);   // tắt player
+        mainMenuPanel.SetActive(true);
+        gameOverPanel.SetActive(false);
     }
 
+    // Gameplay
+    public void PlayGame()
+    {
+        score = 0;
+        scoreText.text = score.ToString();
+
+        mainMenuPanel.SetActive(false);
+        gameOverPanel.SetActive(false);
+        playButton.SetActive(false);
+
+        PipeMovement[] pipes = FindObjectsOfType<PipeMovement>();
+        foreach (var pipe in pipes)
+            Destroy(pipe.gameObject);
+
+        Time.timeScale = 0;
+        playerObject.SetActive(true);
+        player.enabled = false;
+
+        StartCoroutine(CountdownAndStart());
+    }
+
+    private IEnumerator CountdownAndStart()
+    {
+        int countdown = 3;
+        countdownText.gameObject.SetActive(true);
+
+        while (countdown > 0)
+        {
+            countdownText.text = countdown.ToString();
+            yield return new WaitForSecondsRealtime(1f);
+            countdown--;
+        }
+        yield return new WaitForSecondsRealtime(1f);
+        countdownText.gameObject.SetActive(false);
+        // Bắt đầu game
+        Time.timeScale = 1;
+        player.enabled = true;
+        EventSystem.current.SetSelectedGameObject(null);
+    }
+
+    // Gameover
+    public void GameOver()
+    {
+        Time.timeScale = 0;
+        player.enabled = false;
+
+        gameOverPanel.SetActive(true);
+        playButton.SetActive(true);
+    }
+
+
+    // Score
     public void Scoring()
     {
-        Debug.Log("+1 point");
         score++;
         scoreText.text = score.ToString();
     }
 
-    public void GameOver()
+    // quit
+    public void QuitGame()
     {
-        PauseGame();
-    }
-
-    private void PauseGame()
-    {
-        Time.timeScale = 0;
-        playButton.SetActive(true);
-        gameOverPanel.SetActive(true);
-        player.enabled = false;
-    }
-
-    public void PlayGame()
-    {
-        Time.timeScale = 1;
-        score = 0;
-        scoreText.text = score.ToString();
-
-        playButton.SetActive(false);
-        gameOverPanel.SetActive(false);
-
-        PipeMovement[] pipes = FindObjectsOfType<PipeMovement>();
-
-        for (int i = 0; i < pipes.Length; i++)
-        {
-            Destroy(pipes[i].gameObject);
-        }
-
-        player.enabled = true;
-        
-        EventSystem.current.SetSelectedGameObject(null);
+        Application.Quit();
+        Debug.Log("Game Quit!");
     }
 }
