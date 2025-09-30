@@ -35,6 +35,10 @@ public class PlayerScript : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Space))
         {
             playerDirection = Vector3.up * jumpStrength;
+            if (AudioManager.Instance != null)
+            {
+                AudioManager.Instance.PlaySFX(AudioManager.Instance.sfxJump);
+            }
         }
 
         ApplyGravity();
@@ -64,9 +68,14 @@ public class PlayerScript : MonoBehaviour
         if (other.CompareTag("Scoring"))
         {
             gameManager.Scoring();
+            AudioManager.Instance.PlaySFX(AudioManager.Instance.sfxPoint);
         }
         else if (other.CompareTag("Obstacles"))
         {
+            if (AudioManager.Instance != null)
+            {
+                AudioManager.Instance.PlaySFX(AudioManager.Instance.sfxHit);
+            }
             gameManager.GameOver();
         }
     }

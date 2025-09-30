@@ -9,6 +9,7 @@ public class GameManager : MonoBehaviour
     public GameObject playerObject;
     public Text scoreText;
     public Text countdownText;
+    public Text highScoreText;  
 
     [Header("UI Panels")]
     [SerializeField] private GameObject mainMenuPanel;
@@ -16,18 +17,20 @@ public class GameManager : MonoBehaviour
     [SerializeField] private GameObject playButton;
 
     private int score;
+    [SerializeField] private int highScore;
 
     private void Start()
     {
+        highScore = PlayerPrefs.GetInt("HighScore", 0);
         ShowMainMenu();
     }
 
     // Waiting screen
     public void ShowMainMenu()
     {
-        Time.timeScale = 1;
         score = 0;
         scoreText.text = "0";
+        highScoreText.text = "Best: " + highScore.ToString(); // hiển thị highscore
 
         playerObject.SetActive(false);   // tắt player
         mainMenuPanel.SetActive(true);
@@ -48,7 +51,6 @@ public class GameManager : MonoBehaviour
         foreach (var pipe in pipes)
             Destroy(pipe.gameObject);
 
-        Time.timeScale = 0;
         playerObject.SetActive(true);
         player.enabled = false;
 
@@ -63,12 +65,10 @@ public class GameManager : MonoBehaviour
         while (countdown > 0)
         {
             countdownText.text = countdown.ToString();
-            yield return new WaitForSecondsRealtime(1f);
+            yield return new WaitForSecondsRealtime(1f); // không bị ảnh hưởng bởi Time.timeScale
             countdown--;
         }
-        yield return new WaitForSecondsRealtime(1f);
         countdownText.gameObject.SetActive(false);
-        // Bắt đầu game
         Time.timeScale = 1;
         player.enabled = true;
         EventSystem.current.SetSelectedGameObject(null);
@@ -77,19 +77,31 @@ public class GameManager : MonoBehaviour
     // Gameover
     public void GameOver()
     {
-        Time.timeScale = 0;
         player.enabled = false;
+        Time.timeScale = 0;
+
+        if (score > highScore)
+        {
+            highScore = score;
+            PlayerPrefs.SetInt("HighScore", highScore); // lưu vào bộ nhớ
+            PlayerPrefs.Save();
+        }
+
+        highScoreText.text = "Best: " + highScore.ToString(); // luôn hiển thị best score
 
         gameOverPanel.SetActive(true);
         playButton.SetActive(true);
     }
-
 
     // Score
     public void Scoring()
     {
         score++;
         scoreText.text = score.ToString();
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlaySFX(AudioManager.Instance.sfxPoint);
+        }
     }
 
     // quit
