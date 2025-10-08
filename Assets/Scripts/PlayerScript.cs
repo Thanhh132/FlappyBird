@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using UnityEngine.EventSystems;
 using UnityEngine;
 
 public class PlayerScript : MonoBehaviour
@@ -7,7 +8,7 @@ public class PlayerScript : MonoBehaviour
     private GameManager gameManager;
     [SerializeField] private float gravity = -9.81f;
     [SerializeField] private float tilt = 5f;
-    [SerializeField] private float jumpStrength = 5f;
+    [SerializeField] private float jumpStrength = 3f;
 
     private Vector3 playerDirection;
     private Vector3 playerRotation;
@@ -26,13 +27,29 @@ public class PlayerScript : MonoBehaviour
     void Update()
     {
         PlayerControl();
-
     }
-
 
     private void PlayerControl()
     {
+        bool isJump = false;
+
+        // Nếu đang nhấn vào UI (Pause, Resume, ...), bỏ qua input
+        if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+            return;
+
+        // Nhảy bằng phím Space (PC test)
         if (Input.GetKeyDown(KeyCode.Space))
+        {
+            isJump = true;
+        }
+
+        // Nhảy bằng click chuột hoặc chạm màn hình (Mobile + PC)
+        if (Input.GetMouseButtonDown(0))
+        {
+            isJump = true;
+        }
+
+        if (isJump)
         {
             playerDirection = Vector3.up * jumpStrength;
             if (AudioManager.Instance != null)
@@ -50,7 +67,7 @@ public class PlayerScript : MonoBehaviour
         position.y = 0;
         transform.position = position;
         playerDirection = Vector3.zero;
-        
+
     }
 
     private void ApplyGravity()
