@@ -7,13 +7,13 @@ public class Pipes : MonoBehaviour
     public Transform topPipe;
     public Transform bottomPipe;
     public float gap = 3f;
+
     [SerializeField] private float speed = 2f;
+    private float destroyX = -8f;
 
-    private float destroyX = -8f; // vị trí x để hủy pipe
-
-    void Start()
+    void Update()
     {
-        // Có thể bỏ leftEdge nếu không dùng nữa
+        Moving();
     }
 
     public void Setup(float gapValue)
@@ -23,16 +23,10 @@ public class Pipes : MonoBehaviour
         bottomPipe.position += Vector3.down * gap / 2;
     }
 
-    void Update()
-    {
-        Moving();
-    }
-
     private void Moving()
     {
         transform.position += Vector3.left * speed * Time.deltaTime;
 
-        // Nếu Pipe đi qua bên trái màn hình thì hủy
         if (transform.position.x < destroyX)
         {
             Destroy(gameObject);

@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -5,6 +6,8 @@ using UnityEngine.UI;
 
 public class GameManager : MonoBehaviour
 {
+    public enum GameState { Menu, Playing, Paused, GameOver, CountingDown }
+
     public PlayerScript player;
     public GameObject playerObject;
     public GameObject spawner;
@@ -17,17 +20,14 @@ public class GameManager : MonoBehaviour
     [SerializeField] private GameObject gameOverPanel;
     [SerializeField] private GameObject playButton;
     [SerializeField] private GameObject pauseButton;
-    [SerializeField] private GameObject restartHighScoreButton;
     [SerializeField] private GameObject quitButton;
 
     private int score;
     [SerializeField] private int highScore;
 
-    private bool isPaused = false;
-    private bool isGameOver = false;
-    private bool isCountingDown = false;
+    private GameState state = GameState.Menu;
 
-    private void Start()
+    void Start()
     {
         highScore = PlayerPrefs.GetInt("HighScore", 0);
         ShowMainMenu();
@@ -37,110 +37,40 @@ public class GameManager : MonoBehaviour
     {
         score = 0;
         scoreText.text = "0";
-        highScoreText.text = "BestScore: " + highScore.ToString();
+        highScoreText.text = "BestScore: " + highScore;
 
         playerObject.SetActive(false);
         spawner.SetActive(false);
 
-        mainMenuPanel.SetActive(true);
-        gameOverPanel.SetActive(false);
-
-        pauseButton.SetActive(false);
-        playButton.SetActive(true);
-        restartHighScoreButton.SetActive(true);
-
-        Time.timeScale = 1;
-        isPaused = false;
-        isGameOver = false;
-        isCountingDown = false;
+        ApplyMenuUI();
+        Time.timeScale = 1f;
+        state = GameState.Menu;
     }
 
     public void PlayGame()
     {
+        if (state == GameState.CountingDown) return;
+
         playButton.SetActive(false);
-
-        if (isGameOver)
-        {
-            player.transform.position = Vector3.zero;
-            player.transform.rotation = Quaternion.identity;
-            player.enabled = false;
-        }
-
-        mainMenuPanel.SetActive(false);
         gameOverPanel.SetActive(false);
-        restartHighScoreButton.SetActive(false);
 
-        if (isPaused)
+        if (state == GameState.Paused)
         {
-            StartCoroutine(CountdownAndResume());
+            StartCoroutine(DoCountdown(3, ResumeAfterPause));
             return;
         }
 
-        Pipes[] pipes = FindObjectsOfType<Pipes>();
-        foreach (var pipe in pipes)
-            Destroy(pipe.gameObject);
-
-        playerObject.SetActive(true);
-        spawner.SetActive(true);
-        player.enabled = false;
-
-        score = 0;
-        scoreText.text = "0";
-        isGameOver = false;
-
-        StartCoroutine(CountdownAndStart());
+        NewGame();
     }
 
-    private IEnumerator CountdownAndStart()
+    public void Pause()
     {
-        if (isCountingDown) yield break;
-        isCountingDown = true;
+        if (state != GameState.Playing) return;
+        Time.timeScale = 0f;
+        state = GameState.Paused;
 
-        Time.timeScale = 0;
-        int countdown = 3;
-        countdownText.gameObject.SetActive(true);
-
-        while (countdown > 0)
-        {
-            countdownText.text = countdown.ToString();
-            yield return new WaitForSecondsRealtime(1f);
-            countdown--;
-        }
-
-        countdownText.gameObject.SetActive(false);
-
-        Time.timeScale = 1;
-        player.enabled = true;
-        pauseButton.SetActive(true);
-        isPaused = false;
-
-        isCountingDown = false;
-        EventSystem.current.SetSelectedGameObject(null);
-    }
-
-    private IEnumerator CountdownAndResume()
-    {
-        if (isCountingDown) yield break;
-        isCountingDown = true;
-
-        Time.timeScale = 0;
-        int countdown = 3;
-        countdownText.gameObject.SetActive(true);
-
-        while (countdown > 0)
-        {
-            countdownText.text = countdown.ToString();
-            yield return new WaitForSecondsRealtime(1f);
-            countdown--;
-        }
-
-        countdownText.gameObject.SetActive(false);
-        Time.timeScale = 1;
-        pauseButton.SetActive(true);
-        isPaused = false;
-
-        isCountingDown = false;
-        EventSystem.current.SetSelectedGameObject(null);
+        pauseButton.SetActive(false);
+        playButton.SetActive(true);
     }
 
     public void Scoring()
@@ -153,8 +83,10 @@ public class GameManager : MonoBehaviour
 
     public void GameOver()
     {
+        if (state == GameState.GameOver) return;
+
         player.enabled = false;
-        Time.timeScale = 0;
+        Time.timeScale = 0f;
 
         if (score > highScore)
         {
@@ -162,37 +94,104 @@ public class GameManager : MonoBehaviour
             PlayerPrefs.SetInt("HighScore", highScore);
             PlayerPrefs.Save();
         }
+        highScoreText.text = "BestScore: " + highScore;
 
-        highScoreText.text = "BestScore: " + highScore.ToString();
-
-        isGameOver = true;
-
-        gameOverPanel.SetActive(true);
-        pauseButton.SetActive(false);
-        playButton.SetActive(true);
-    }
-
-    public void Pause()
-    {
-        if (isPaused || isCountingDown) return;
-
-        Time.timeScale = 0;
-        isPaused = true;
-
-        pauseButton.SetActive(false);
-        playButton.SetActive(true); 
-    }
-
-    public void RestartHighScore()
-    {
-        PlayerPrefs.DeleteKey("HighScore");
-        highScore = 0;
-        highScoreText.text = "BestScore: 0";
+        ApplyGameOverUI();
+        state = GameState.GameOver;
     }
 
     public void QuitGame()
     {
         Application.Quit();
         Debug.Log("Game Quit!");
+    }
+
+    private void NewGame()
+    {
+        foreach (var pipe in FindObjectsOfType<Pipes>())
+            Destroy(pipe.gameObject);
+
+        playerObject.SetActive(true);
+        spawner.SetActive(true);
+        player.enabled = false;
+
+        ResetRun();
+
+        StartCoroutine(DoCountdown(3, StartPlaying));
+    }
+
+    private void ResumeAfterPause()
+    {
+        Time.timeScale = 1f;
+        pauseButton.SetActive(true);
+        state = GameState.Playing;
+        EventSystem.current.SetSelectedGameObject(null);
+    }
+
+    private void StartPlaying()
+    {
+        Time.timeScale = 1f;
+        player.enabled = true;
+        ApplyPlayingUI();
+        state = GameState.Playing;
+        EventSystem.current.SetSelectedGameObject(null);
+    }
+
+    private void ResetRun()
+    {
+        player.transform.position = Vector3.zero;
+        player.transform.rotation = Quaternion.identity;
+
+        score = 0;
+        scoreText.text = "0";
+    }
+
+
+    private void ApplyMenuUI()
+    {
+        mainMenuPanel.SetActive(true);
+        gameOverPanel.SetActive(false);
+
+        pauseButton.SetActive(false);
+        playButton.SetActive(true);
+
+        countdownText.gameObject.SetActive(false);
+    }
+
+    private void ApplyPlayingUI()
+    {
+        mainMenuPanel.SetActive(false);
+        gameOverPanel.SetActive(false);
+        pauseButton.SetActive(true);
+        playButton.SetActive(false);
+    }
+
+    private void ApplyGameOverUI()
+    {
+        gameOverPanel.SetActive(true);
+        pauseButton.SetActive(false);
+        playButton.SetActive(true);
+    }
+
+    private IEnumerator DoCountdown(int seconds, Action onDone)
+    {
+        if (state == GameState.CountingDown) yield break;
+
+        state = GameState.CountingDown;
+        Time.timeScale = 0f;
+
+        mainMenuPanel.SetActive(false);
+        countdownText.gameObject.SetActive(true);
+
+        int time = Mathf.Max(0, seconds);
+        while (time > 0)
+        {
+            countdownText.text = time.ToString();
+            yield return new WaitForSecondsRealtime(1f);
+            time--;
+        }
+
+        countdownText.gameObject.SetActive(false);
+        onDone?.Invoke();
     }
 }
